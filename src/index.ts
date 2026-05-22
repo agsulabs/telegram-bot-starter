@@ -1,20 +1,14 @@
-import { Bot } from "grammy";
-import dotenv from "dotenv";
+import { createBot } from "./bot/createBot.js";
 
-dotenv.config();
+const bot = createBot();
 
-const token = process.env.BOT_TOKEN;
-
-if (!token) {
-    throw new Error("BOT_TOKEN not found");
-}
-
-const bot = new Bot(token);
-
-bot.command("start", (ctx) => {
-    ctx.reply("Bot started");
+bot.catch((error) => {
+  console.error("Bot error:", error);
 });
 
-bot.start();
+process.once("SIGINT", () => bot.stop());
+process.once("SIGTERM", () => bot.stop());
 
 console.log("Telegram bot started");
+
+await bot.start();

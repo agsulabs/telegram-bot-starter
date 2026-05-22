@@ -1,6 +1,6 @@
 {
   "name": "telegram-bot-starter",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "",
   "type": "module",
   "main": "index.js",
@@ -13,7 +13,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "packageManager": "pnpm@10.14.0",
   "dependencies": {
     "dotenv": "^17.4.2",
