@@ -3,9 +3,14 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const botToken = process.env.BOT_TOKEN;
+const databaseUrl = process.env.DATABASE_URL;
 
 if (!botToken) {
   throw new Error("BOT_TOKEN is required");
+}
+
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required");
 }
 
 const ownerIdRaw = process.env.OWNER_ID;
@@ -18,4 +23,6 @@ if (ownerIdRaw && Number.isNaN(ownerId)) {
 export const env = {
   botToken,
   ownerId,
+  channelId: process.env.CHANNEL_ID ?? null,
+  databaseUrl,
 };
