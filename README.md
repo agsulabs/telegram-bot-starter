@@ -1,79 +1,172 @@
-# REFIJIN LABS
+# REFIJIN LABS Telegram Platform
 
-Минимальный Telegram Bot на TypeScript/grammY, подключение PostgreSQL и статический Telegram Mini App. Экран приложения: **REFIJIN LABS — Coming soon.** Без платежей, регистрации и бизнес-логики.
+Telegram-бот на TypeScript/grammY, PostgreSQL и лёгкий Telegram Mini App. Telegram выступает единственным identity provider: отдельной регистрации, паролей и доверия к данным браузера нет.
 
-## Структура
+## Архитектура
 
 ```text
-src/
-  bot/                 создание бота и проверка владельца
-  commands/            /start и /publish_channel
-  config/              чтение и проверка env
-  db/                  PostgreSQL pool и сохранённая старая схема
-  webapp/server.ts     отдельный HTTP-сервер публичных файлов
-  check-connections.ts проверка PostgreSQL и Telegram без polling
-  index.ts             запуск бота
-webapp/                index.html, style.css, app.js
-scripts/               копирование Mini App при сборке
-tests/                тесты с имитацией Telegram API
+Telegram channel / linked discussion / bot
+                    │
+                    ▼
+             grammY polling
+                    │
+          raw telegram_events (JSONB)
+                    │
+                    ▼
+ users · memberships · comments · reactions
+                    │
+                    ▼
+     Mini App HTTP API ──► Publications ──► Telegram channel
 ```
 
-## Настройка и запуск
+- `src/bot/` — grammY bot, raw-first middleware и точный список `allowed_updates`.
+- `src/auth/` — криптографическая проверка Telegram Mini App `initData`.
+- `src/services/` — membership, публикации и нормализация Telegram updates.
+- `src/db/` — PostgreSQL pool, repositories и migration runner.
+- `src/webapp/` — API и статический HTTP server.
+- `webapp/` — mobile-first Mini App без frontend-фреймворка.
+- `migrations/` — последовательные SQL-миграции; существующие таблицы не удаляются.
 
-Node.js 22+ и pnpm 10.14.0. Из корня репозитория:
+## Требования и запуск
+
+Node.js 22+, pnpm 10.14.0 и PostgreSQL.
 
 ```sh
 pnpm install
-# Только если .env ещё нет: cp .env.example .env
+pnpm db:migrate
+pnpm dev
+# Второй процесс для Mini App/API:
 pnpm dev:webapp
 ```
 
-Mini App доступен на `http://localhost:3000`. Бот и БД не нужны для просмотра страницы. Необязательная переменная `PORT` меняет порт HTTP-сервера.
+`pnpm dev:webapp` слушает `PORT` (по умолчанию `3000`). Для Telegram нужен публичный HTTPS reverse proxy/tunnel к этому серверу. Раздавайте только Mini App и API, не корень репозитория.
 
-В другом терминале: `pnpm dev` для запуска бота. Нужна доступная PostgreSQL. Не запускайте два polling-процесса с одним токеном.
+Production:
 
-В `.env`:
+```sh
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm db:migrate
+pnpm start
+pnpm start:webapp
+```
 
-| Переменная | Назначение |
-| --- | --- |
-| `BOT_TOKEN` | Обязательный токен бота из BotFather |
-| `OWNER_ID` | Числовой Telegram ID владельца; без него публикация отключена |
-| `CHANNEL_ID` | ID канала или его @username для публикации |
-| `DATABASE_URL` | Обязательная строка подключения PostgreSQL |
-| `WEBAPP_URL` | Публичный HTTPS URL страницы Mini App |
+Миграции используют `schema_migrations`, PostgreSQL advisory lock и отдельную транзакцию на файл. Они не выполняют reset/drop и сохраняют прежнюю `connected_chats`, если она существует.
 
-Не заменяйте существующие рабочие значения. `.env` не коммитится и не раздаётся HTTP-сервером. Без `WEBAPP_URL` бот запускается, но `/start` показывает Coming soon без кнопки; публикация в канал отключена. Некорректный URL отклоняется.
+## Environment
 
-## Публичный HTTPS и Telegram
+Создайте `.env` локально из `.env.example`; `.env` не коммитится. Приложение не помещает токен или `initData` в логи.
 
-Разместите **только содержимое `webapp/`** на статическом хостинге с HTTPS или запустите `pnpm start:webapp` за HTTPS reverse proxy. Для разработки можно использовать HTTPS-туннель к порту 3000. URL должен быть доступен с телефона и Desktop без локальной сети и дополнительного входа. Если туннель сменил адрес, обновите `WEBAPP_URL` и перезапустите бота. Для подпапки используйте URL с завершающим `/`.
+| Переменная | Обязательность | Назначение |
+| --- | --- | --- |
+| `BOT_TOKEN` | да | BotFather token, только backend |
+| `DATABASE_URL` | да | PostgreSQL connection string |
+| `OWNER_ID` | рекомендуется | исходный server-side administrator Telegram ID |
+| `CHANNEL_ID` | да для доступа/публикаций | numeric channel ID (`-100…`) или `@username` |
+| `WEBAPP_URL` | да для Mini App button | публичный HTTPS URL этого Mini App/API |
+| `CHANNEL_URL` | нужен при numeric/private `CHANNEL_ID` | HTTPS join/public URL, например `https://t.me/refijinlabs` или invite link |
+| `DISCUSSION_CHAT_ID` | нужен для нормализации комментариев | numeric ID связанной supergroup (`-100…`) |
+| `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS` | нет | максимальный возраст initData, default `3600` |
+| `MEMBERSHIP_CACHE_SECONDS` | нет | TTL server-side membership cache, default `300` |
+| `PORT` | нет | HTTP port, default `3000` |
 
-В BotFather выберите существующего бота. Через `/setcommands` задайте `start - Open REFIJIN LABS` и удалите старые команды. Для кнопки в ответе `/start` отдельное создание приложения через `/newapp` не требуется. По желанию настройте `/setmenubutton`: текст `Open REFIJIN LABS`, URL тот же, что `WEBAPP_URL`.
+`CHANNEL_URL` и `DISCUSSION_CHAT_ID` добавляются вручную; приложение никогда не редактирует `.env`.
 
-Откройте личный чат с ботом → `/start` → **Open REFIJIN LABS**. Используется официальный Telegram WebApp SDK, `ready()`, `expand()` и Telegram theme CSS variables. Страница адаптивная; вне Telegram используется тёмная тема.
+### Как получить IDs
 
-## Канал
+1. Добавьте бота администратором канала и связанной discussion supergroup.
+2. Укажите известный `CHANNEL_ID`.
+3. Запустите `pnpm check:connections`. Команда делает `getMe`, `getChat(CHANNEL_ID)` и печатает numeric channel ID и Telegram `linked_chat_id`, если он доступен.
+4. Скопируйте подтверждённый `linked_chat_id` в `DISCUSSION_CHAT_ID` и перезапустите процессы.
 
-Добавьте бота администратором канала с правом публикации. Укажите `OWNER_ID`, `CHANNEL_ID`, `WEBAPP_URL`. Владелец отправляет **в личный чат боту** `/publish_channel`. Каждый вызов отправляет новое сообщение в канал с URL-кнопкой.
+Не угадывайте ID и не привязывайте произвольную группу. Для публичного канала `CHANNEL_URL=https://t.me/<username>`. Для private channel используйте контролируемую invite link и учитывайте срок/лимиты ссылки.
 
-Путь: канал → `https://t.me/<bot_username>?start=channel` → Start (если Telegram его предлагает) → ответ `/start` с WebApp-кнопкой. Username берётся из Telegram автоматически. Ту же ссылку можно вручную добавить в канал без команды.
+## Telegram authentication и access gate
 
-WebApp-кнопки доступны в личных чатах; в канале используется обычная URL-кнопка, согласно [Telegram Bot API](https://core.telegram.org/bots/api#inlinekeyboardbutton). Документация: [Mini Apps](https://core.telegram.org/bots/webapps), [deep links](https://core.telegram.org/bots/features#deep-linking).
+Mini App отправляет `Telegram.WebApp.initData` в `Authorization: tma <initData>`. Backend:
 
-## PostgreSQL и проверка
+1. строит canonical data-check string;
+2. проверяет HMAC-SHA256 через secret key `HMAC_SHA256(BOT_TOKEN, "WebAppData")`;
+3. проверяет `auth_date` и maximum age;
+4. upsert-ит Telegram user;
+5. вычисляет admin status только server-side;
+6. проверяет `getChatMember(CHANNEL_ID, telegram_user_id)` или свежий server-side cache.
 
-Pool использует прежний `DATABASE_URL`. При старте выполняется `SELECT 1`. Существующие таблицы и данные не изменяются. `src/db/schema.ts` сохранён как описание прежней схемы `connected_chats`; автоматически миграция не запускается. Старый интерфейс списка чатов и запись событий подключения удалены, новая версия эту таблицу не использует.
+Frontend `initDataUnsafe`, присланные роли, user IDs и membership flags не используются для авторизации. `OWNER_ID` и активные записи `admin_grants` независимы от обычной membership-роли; администратор не блокирует сам себя. Endpoint recheck принудительно обходит cache.
+
+`/start` отдельно проверяет membership и показывает либо WebApp button, либо channel link + `Check subscription`. Backend повторяет проверку независимо, поэтому обход bot UI доступа не даёт.
+
+## Mini App API
+
+Все endpoints требуют валидный `tma` header.
+
+- `POST /api/auth/bootstrap`
+- `POST /api/auth/recheck-membership`
+- `GET|POST /api/admin/publications`
+- `GET|PATCH|DELETE /api/admin/publications/:id`
+- `GET /api/admin/publications/:id/preview`
+- `POST /api/admin/publications/:id/publish`
+- `GET /api/admin/subscribers`
+- `GET /api/admin/subscribers/:id`
+- `GET /api/admin/subscribers/:id/activity`
+
+Admin endpoints повторно проверяют admin authorization на каждом запросе. Обычный пользователь до успешной membership-проверки получает только безопасный bootstrap/access-gate response.
+
+## Publications
+
+Mini App поддерживает список, draft create/edit/preview/delete, publish и edit уже опубликованного текстового сообщения. Путь: Mini App → backend → PostgreSQL → Bot API → channel.
+
+Публикация сначала атомарно переводится `DRAFT → PUBLISHING`. Только после успешного `sendMessage` записываются `PUBLISHED`, `telegram_message_id` и `published_at`. Повторный tap не отправляет второй пост. При Telegram failure запись возвращается в `DRAFT` с безопасным `last_publish_error`. Если Telegram уже принял сообщение, а PostgreSQL confirmation не сохранился, API явно сообщает о необходимости reconciliation и запрещает притворяться, что всё успешно.
+
+Статусы schema заранее допускают `SCHEDULED`/`ARCHIVED`, но UI scheduling в этот build не реализует.
+
+## Raw events и normalized data
+
+Каждый update из разрешённой области сначала append-ится в `telegram_events.raw_payload JSONB` с unique `update_id/event_key`. Только после commit выполняется projection. Ошибка projection оставляет raw event со статусом `FAILED`, чтобы его можно было исследовать или перепроцессить позже. Неизвестный поддерживаемой областью update сохраняется как `IGNORED`.
+
+Normalized данные создаются только при наличии подтверждённых полей Telegram:
+
+- users из bot/Mini App activity;
+- текущий membership cache и append-only membership observations;
+- comments только из настроенной linked discussion group;
+- связь comment → channel message/publication только когда `forward_origin` её предоставляет;
+- individual reaction state только когда Telegram передал `user` или `actor_chat`;
+- anonymous/aggregate reactions хранятся отдельно как counts, без выдуманного пользователя;
+- Mini App first-party actions хранятся отдельно от raw Bot API events.
+
+Bot polling явно запрашивает установленные grammY 1.43/Bot API update names:
+
+`message`, `edited_message`, `channel_post`, `edited_channel_post`, `callback_query`, `chat_member`, `my_chat_member`, `message_reaction`, `message_reaction_count`.
+
+## Telegram/BotFather permissions
+
+- BotFather `/setcommands`: как минимум `start - Open REFIJIN LABS` и при необходимости owner command `publish_channel`.
+- BotFather Main App/Menu Button: URL должен совпадать с `WEBAPP_URL`; bot также выставляет default Web App menu button при startup.
+- Канал: bot administrator с правом публиковать и редактировать собственные posts.
+- Discussion group: bot administrator и privacy/configuration, позволяющие получать нужные messages/edits.
+- Для `chat_member`, `message_reaction`, `message_reaction_count` bot должен быть admin, а update types должны быть явно разрешены (код это делает).
+
+`/publish_channel` сохранён как owner-only legacy publication button. Основной content workflow находится внутри Mini App.
+
+## Ограничения Telegram API
+
+- Bot API не предоставляет полный исторический export всех подписчиков канала.
+- `Subscribers` показывает только людей, известных системе через bot, Mini App, membership checks и реально доставленные updates.
+- Bot не получает произвольную историю, activity вне наших ресурсов или все удаления сообщений.
+- Anonymous/aggregate reactions нельзя честно приписать конкретному пользователю.
+- Связь discussion comment с channel post существует только когда Telegram передал достаточные relationship fields.
+- Редактирование channel messages ограничено правами бота и правилами Bot API.
+
+Проект не делает scraping, не обходит privacy/API limitations и не создаёт fake analytics.
+
+## Проверки
 
 ```sh
 pnpm typecheck
 pnpm test
 pnpm build
 pnpm check:connections
-pnpm start
-# В отдельном процессе, если не используется статический хостинг:
-pnpm start:webapp
 ```
 
-`check:connections` выполняет `SELECT 1` и Telegram `getMe`, не отправляет сообщения и не забирает обновления. Тесты используют поддельные env и Telegram API, не обращаются к реальному каналу. `build` компилирует backend в `dist/` и копирует Mini App в `dist/webapp/public/`.
-
-Перед production вручную проверьте открытие страницы в мобильном Telegram и Desktop, светлую/тёмную темы и переход из канала.
+Automated tests мокают Telegram network calls и не публикуют реальные сообщения. `check:connections` — read-only, не запускает polling и ничего не отправляет.

@@ -10,9 +10,81 @@
   <script src="./app.js" defer></script>
 </head>
 <body>
-  <main>
-    <h1>REFIJIN LABS</h1>
-    <p>Coming soon.</p>
+  <header class="topbar">
+    <div class="mark" aria-hidden="true">R</div>
+    <div><strong>REFIJIN LABS</strong><span id="account-label">Telegram platform</span></div>
+  </header>
+
+  <main id="app">
+    <section id="loading" class="center-card">
+      <div class="pulse"></div>
+      <h1>Connecting</h1>
+      <p>Verifying your Telegram access…</p>
+    </section>
+
+    <section id="error-screen" class="center-card" hidden>
+      <p class="eyebrow">ACCESS ERROR</p>
+      <h1>Unable to continue</h1>
+      <p id="error-message"></p>
+      <button id="retry-bootstrap" class="button primary">Try again</button>
+    </section>
+
+    <section id="membership-gate" class="center-card gate" hidden>
+      <div class="orb">R</div>
+      <p class="eyebrow">REFIJIN LABS</p>
+      <h1>Subscriber access</h1>
+      <p>Join the REFIJIN LABS channel to use this Mini App, then check your membership again.</p>
+      <a id="join-channel" class="button primary" href="#" hidden>Join the channel</a>
+      <button id="recheck-membership" class="button secondary">Check membership</button>
+      <p id="membership-status" class="small"></p>
+    </section>
+
+    <section id="member-app" hidden>
+      <div class="hero">
+        <p class="eyebrow">MEMBER AREA</p>
+        <h1 id="welcome-title">Welcome</h1>
+        <p>REFIJIN LABS is building practical systems at the edge of technology and automation.</p>
+      </div>
+
+      <section id="admin-area" hidden>
+        <div class="section-heading">
+          <div><p class="eyebrow">ADMIN MODE</p><h2>Control center</h2></div>
+          <span class="badge">SECURE</span>
+        </div>
+        <nav class="tabs" aria-label="Admin sections">
+          <button class="tab active" data-tab="publications">Publications</button>
+          <button class="tab" data-tab="subscribers">Subscribers</button>
+        </nav>
+
+        <section id="publications-panel" class="panel">
+          <div class="panel-actions"><h3>Publications</h3><button id="new-publication" class="button compact primary">+ New publication</button></div>
+          <div id="publication-list" class="list"></div>
+        </section>
+
+        <section id="editor-panel" class="panel" hidden>
+          <button id="close-editor" class="text-button">← Publications</button>
+          <form id="publication-form">
+            <input id="publication-id" type="hidden">
+            <label>Title<input id="publication-title" maxlength="200" required></label>
+            <label>Content<textarea id="publication-body" rows="10" maxlength="3890" required></textarea></label>
+            <div id="publication-meta" class="small"></div>
+            <div class="button-grid">
+              <button class="button secondary" type="button" id="preview-publication">Preview</button>
+              <button class="button secondary" type="submit">Save</button>
+              <button class="button primary" type="button" id="publish-publication">Publish</button>
+              <button class="button danger" type="button" id="delete-publication">Delete draft</button>
+            </div>
+          </form>
+          <article id="publication-preview" class="preview" hidden><h3></h3><p></p></article>
+        </section>
+
+        <section id="subscribers-panel" class="panel" hidden>
+          <div class="panel-actions"><div><h3>Known subscribers</h3><p class="small">People observed through this bot, channel and Mini App.</p></div></div>
+          <div id="subscriber-list" class="list"></div>
+        </section>
+      </section>
+    </section>
   </main>
+  <div id="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

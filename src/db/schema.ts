@@ -1,15 +1,3 @@
-import { pool } from "./database.js";
-
-export async function migrateDatabase(): Promise<void> {
-    await pool.query(`
-    CREATE TABLE IF NOT EXISTS connected_chats (
-      id BIGINT PRIMARY KEY,
-      type TEXT NOT NULL,
-      title TEXT,
-      username TEXT,
-      status TEXT NOT NULL,
-      connected_at TIMESTAMPTZ NOT NULL,
-      updated_at TIMESTAMPTZ NOT NULL
-    );
-  `);
-}
+// Compatibility entrypoint for callers of the previous schema module.
+// All schema changes now live in versioned SQL files under migrations/.
+export { migrateDatabase } from "./migrations.js";

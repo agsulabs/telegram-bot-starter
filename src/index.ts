@@ -1,4 +1,4 @@
-import { createBot } from "./bot/createBot.js";
+import { allowedUpdates, createBot } from "./bot/createBot.js";
 import { checkDatabase, closeDatabase } from "./db/database.js";
 import { env } from "./config/env.js";
 
@@ -18,10 +18,15 @@ try {
   await checkDatabase();
   if (!env.webappUrl) console.warn("WEBAPP_URL is unset; Mini App button is disabled.");
   if (!stopping) {
+    if (env.webappUrl) {
+      await bot.api.setChatMenuButton({
+        menu_button: { type: "web_app", text: "Open REFIJIN LABS", web_app: { url: env.webappUrl } },
+      });
+    }
     await bot.start({ onStart: () => {
       if (stopping) void bot.stop();
       else console.log("REFIJIN LABS bot started");
-    } });
+    }, allowed_updates: allowedUpdates });
   }
 } catch {
   console.error("Bot startup or polling failed. Check PostgreSQL, BOT_TOKEN and network access.");
