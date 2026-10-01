@@ -1,25 +1,31 @@
 import { createBot } from "./bot/createBot.js";
-import { closeDatabase } from "./db/database.js";
-import { migrateDatabase } from "./db/schema.js";
-
-await migrateDatabase();
+import { checkDatabase, closeDatabase } from "./db/database.js";
+import { env } from "./config/env.js";
 
 const bot = createBot();
+bot.catch(() => console.error("Telegram update failed"));
 
-bot.catch((error) => {
-  console.error("Bot error:", error);
-});
+let stopping = false;
+const shutdown = () => {
+  stopping = true;
+  if (bot.isRunning()) void bot.stop();
 
-process.once("SIGINT", async () => {
-  bot.stop();
+};
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
+
+try {
+  await checkDatabase();
+  if (!env.webappUrl) console.warn("WEBAPP_URL is unset; Mini App button is disabled.");
+  if (!stopping) {
+    await bot.start({ onStart: () => {
+      if (stopping) void bot.stop();
+      else console.log("REFIJIN LABS bot started");
+    } });
+  }
+} catch {
+  console.error("Bot startup or polling failed. Check PostgreSQL, BOT_TOKEN and network access.");
+  process.exitCode = 1;
+} finally {
   await closeDatabase();
-});
-
-process.once("SIGTERM", async () => {
-  bot.stop();
-  await closeDatabase();
-});
-
-console.log("Telegram bot started");
-
-await bot.start();
+}

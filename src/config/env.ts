@@ -1,28 +1,32 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
-const botToken = process.env.BOT_TOKEN;
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!botToken) {
-  throw new Error("BOT_TOKEN is required");
+function required(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required`);
+  return value;
 }
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
-}
-
-const ownerIdRaw = process.env.OWNER_ID;
+const ownerIdRaw = process.env.OWNER_ID?.trim();
 const ownerId = ownerIdRaw ? Number(ownerIdRaw) : null;
+if (ownerId !== null && (!Number.isSafeInteger(ownerId) || ownerId <= 0)) {
+  throw new Error("OWNER_ID must be a positive integer");
+}
 
-if (ownerIdRaw && Number.isNaN(ownerId)) {
-  throw new Error("OWNER_ID must be a number");
+const webappUrl = process.env.WEBAPP_URL?.trim() || null;
+if (webappUrl) {
+  let url: URL;
+  try { url = new URL(webappUrl); } catch { throw new Error("WEBAPP_URL must be an HTTPS URL"); }
+  if (url.protocol !== "https:" || url.username || url.password) {
+    throw new Error("WEBAPP_URL must be an HTTPS URL without credentials");
+  }
 }
 
 export const env = {
-  botToken,
+  botToken: required("BOT_TOKEN"),
+  databaseUrl: required("DATABASE_URL"),
   ownerId,
-  channelId: process.env.CHANNEL_ID ?? null,
-  databaseUrl,
+  channelId: process.env.CHANNEL_ID?.trim() || null,
+  webappUrl,
 };

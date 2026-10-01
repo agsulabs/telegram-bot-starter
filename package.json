@@ -1,15 +1,18 @@
 {
-  "name": "telegram-bot-starter",
+  "name": "refijinlabs-bot",
   "version": "0.1.0",
-  "description": "",
+  "description": "REFIJIN LABS Telegram Bot and Mini App",
   "type": "module",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx src/index.ts",
+    "dev:webapp": "tsx src/webapp/server.ts",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
-    "start": "node dist/index.js"
+    "build": "tsc && node scripts/build-webapp.mjs",
+    "start": "node dist/index.js",
+    "start:webapp": "node dist/webapp/server.js",
+    "check:connections": "tsx src/check-connections.ts",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -25,5 +28,9 @@
     "@types/pg": "^8.20.0",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
   }
 }
